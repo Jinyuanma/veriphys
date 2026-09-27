@@ -14,3 +14,4 @@ lean/**/*.ilean
 lean/solution.lean
 .env
 *.jsonl
+/work/

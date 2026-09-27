@@ -1,0 +1,70 @@
+{
+  "name": "mechanics_v1",
+  "description": "Small labeled algebraic mechanics set for comparing direct and IR pipelines.",
+  "cases": [
+    {
+      "id": "newton_symbolic_correct",
+      "domain": "newton_second_law",
+      "problem": "A body has mass m, net force F, and acceleration a. Assume m != 0 and F = m*a. Check the proposed acceleration.",
+      "answer": "a = F/m",
+      "expected_correct": true,
+      "rationale": "Division by the explicitly nonzero mass gives a = F/m."
+    },
+    {
+      "id": "newton_symbolic_wrong",
+      "domain": "newton_second_law",
+      "problem": "A body has mass m, net force F, and acceleration a. Assume m != 0, F != 0, and F = m*a. Check the proposed acceleration.",
+      "answer": "a = 2*F/m",
+      "expected_correct": false,
+      "rationale": "F != 0 makes 2*F/m different from F/m."
+    },
+    {
+      "id": "newton_numeric_correct",
+      "domain": "newton_second_law",
+      "problem": "A body of mass 2 kg experiences net force 10 N. Using F = m*a, check its acceleration in m/s^2.",
+      "answer": "a = 5",
+      "expected_correct": true,
+      "rationale": "10 = 2*a, so a = 5."
+    },
+    {
+      "id": "newton_numeric_wrong",
+      "domain": "newton_second_law",
+      "problem": "A body of mass 2 kg experiences net force 10 N. Using F = m*a, check its acceleration in m/s^2.",
+      "answer": "a = 10",
+      "expected_correct": false,
+      "rationale": "10 is the force magnitude; the acceleration is 5."
+    },
+    {
+      "id": "hooke_correct",
+      "domain": "hooke_law",
+      "problem": "A spring obeys Hooke's law F = -k*x. Let k = 2 and displacement x = 3. Check the signed force F.",
+      "answer": "F = -6",
+      "expected_correct": true,
+      "rationale": "-2*3 = -6."
+    },
+    {
+      "id": "hooke_wrong_sign",
+      "domain": "hooke_law",
+      "problem": "A spring obeys Hooke's law F = -k*x. Let k = 2 and displacement x = 3. Check the signed force F.",
+      "answer": "F = 6",
+      "expected_correct": false,
+      "rationale": "The force has the opposite sign to positive displacement."
+    },
+    {
+      "id": "kinematics_correct",
+      "domain": "kinematics_1d",
+      "problem": "For constant acceleration, v = v0 + a*t. Let v0 = 2, a = 3, and t = 4. Check the final velocity v.",
+      "answer": "v = 14",
+      "expected_correct": true,
+      "rationale": "2 + 3*4 = 14."
+    },
+    {
+      "id": "kinematics_wrong",
+      "domain": "kinematics_1d",
+      "problem": "For constant acceleration, v = v0 + a*t. Let v0 = 2, a = 3, and t = 4. Check the final velocity v.",
+      "answer": "v = 12",
+      "expected_correct": false,
+      "rationale": "12 omits the initial velocity 2."
+    }
+  ]
+}

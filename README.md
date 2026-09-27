@@ -149,13 +149,41 @@ repaired file passes the same import and forbidden-token checks before it is
 sent to Lean. The default is `--max-repairs 0`, so an ordinary run remains a
 single formalization and verification attempt.
 
+## Labeled benchmark
+
+The first comparison set is [benchmarks/mechanics_v1.json](benchmarks/mechanics_v1.json).
+It contains eight introductory mechanics checks, split evenly between correct
+and incorrect candidate answers. Validate its schema without making API calls:
+
+```bash
+.venv/bin/python -m veriphys.benchmark --validate-only
+```
+
+Run both pipelines against the configured model and keep the full report
+locally. This makes 16 initial model runs; enabling repairs can make more.
+
+```bash
+.venv/bin/python -m veriphys.benchmark --output work/benchmark-report.json
+```
+
+Use `--pipelines direct` or `--pipelines ir` to run one path, and
+`--max-repairs 3` to measure the repair-enabled version. The report retains
+each problem, expected label, generated Lean, compiler result, repair history,
+duration, and a separate count for false positives, false negatives, and
+operational errors. `accuracy_all_cases` counts errors as failures;
+`accuracy_decided_cases` excludes them. A Lean proof can still formalize the
+wrong physical assumptions, so inspect false positives and theorem hypotheses
+before drawing conclusions about correctness.
+
 ## Next milestones
 
 - **Done:** direct problem -> Lean generation with a model SDK.
 - **Done:** bounded compiler-feedback repair loop (maximum three attempts).
 - **Done:** natural language -> validated Physics IR -> Lean for the current
   introductory mechanics templates.
-- **Next:** benchmark coverage, ablation results, and a user-facing interface.
+- **Done:** a labeled benchmark runner for direct versus IR comparison.
+- **Next:** run the benchmark with the configured model, inspect false
+  positives, expand coverage, and build a user-facing interface.
 
 The project will not claim a theorem is meaningful merely because it compiles:
 the eventual pipeline must also reject hidden assumptions, new axioms, and
