@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/
+lean/.lake/
+lean/*.olean
+lean/**/*.olean
+lean/*.ilean
+lean/**/*.ilean
+lean/solution.lean
+.env
+*.jsonl
