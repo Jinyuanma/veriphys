@@ -30,7 +30,10 @@ Rules:
 - Do not introduce `axiom`, `sorry`, `admit`, `unsafe`, or hidden assumptions.
 - Do not put the target conclusion in the theorem assumptions.
 - Translate equations and constraints from the IR into theorem hypotheses.
-- Return a complete Lean file with a theorem and a proof.
+- Return a complete Lean file with exactly one named theorem and a proof.
+- The theorem must be provable using only IR equations and constraints, plus
+  a nonzero-mass guard when dividing by a physical mass. A separate Lean
+  contract will check this claim.
 """
 
 

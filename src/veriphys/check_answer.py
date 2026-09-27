@@ -18,8 +18,10 @@ from .lean_generator import IRLeanGenerator
 from .lean_verifier import LeanUnavailableError
 from .parser import PhysicsParser
 from .pipeline import verify_source
+from .proof_contract import ProofContract, ProofContractError, build_proof_contract
 from .repair import LeanRepairer
 from .safety import UnsafeLeanError, normalize_lean_source
+from .schema import VerificationResult
 
 
 @dataclass(frozen=True)
@@ -33,12 +35,34 @@ class AnswerCheckResult:
     assumptions: list[str] | None = None
     lean_code: str | None = None
     lean_verified: bool = False
+    proof_contract_verified: bool = False
+    proof_contract_premises: list[str] | None = None
     repair_attempts: int = 0
     attempt_history: list[dict[str, object]] | None = None
     error: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+def _verify_generated(
+    code: str,
+    project_dir: str | Path,
+    contract: ProofContract | None,
+) -> VerificationResult:
+    if contract is None:
+        return verify_source(code, project_dir=project_dir)
+    try:
+        source = contract.attach(code)
+    except ProofContractError as exc:
+        return VerificationResult(
+            success=False,
+            returncode=None,
+            stdout="",
+            stderr=f"Proof contract rejected generated Lean: {exc}",
+            command=("proof_contract",),
+        )
+    return verify_source(source, project_dir=project_dir)
 
 
 def check_answer(
@@ -58,15 +82,17 @@ def check_answer(
         raise ValueError("max_repairs must be at most 3")
 
     ir = None
+    contract = None
     try:
         config = FormalizerConfig.from_environment(model)
         if use_ir:
             ir = PhysicsParser(config).parse(problem, candidate_answer)
+            contract = build_proof_contract(ir, candidate_answer)
             formalization = IRLeanGenerator(config).generate(ir)
         else:
             formalization = OpenAIFormalizer(config).formalize(problem, candidate_answer)
         lean_code = normalize_lean_source(formalization.lean_code)
-        verification = verify_source(lean_code, project_dir=project_dir)
+        verification = _verify_generated(lean_code, project_dir, contract)
     except UnsafeLeanError as exc:
         return AnswerCheckResult(
             status="rejected",
@@ -112,6 +138,8 @@ def check_answer(
             assumptions=formalization.assumptions,
             lean_code=lean_code,
             lean_verified=True,
+            proof_contract_verified=contract is not None,
+            proof_contract_premises=list(contract.premises) if contract else None,
             attempt_history=[],
         )
 
@@ -202,7 +230,9 @@ def check_answer(
                 )
 
             try:
-                repaired_verification = verify_source(repaired_code, project_dir=project_dir)
+                repaired_verification = _verify_generated(
+                    repaired_code, project_dir, contract
+                )
             except LeanUnavailableError as exc:
                 attempt_history.append(
                     {
@@ -250,6 +280,8 @@ def check_answer(
                     assumptions=repaired.assumptions,
                     lean_code=repaired_code,
                     lean_verified=True,
+                    proof_contract_verified=contract is not None,
+                    proof_contract_premises=list(contract.premises) if contract else None,
                     repair_attempts=repair_attempts,
                     attempt_history=attempt_history,
                 )

@@ -124,6 +124,14 @@ The parser returns a validated object containing the problem type, objects,
 parameters, forces, constraints, equations, and target. The answer checker can
 run this IR through Lean generation with `--use-ir`.
 
+For scalar algebraic IR, the checker builds an independent Lean proof contract
+from the IR premises and candidate answer. The model's theorem must prove that
+contract before an IR run can return `VERIFIED`. This rejects proofs that put
+the answer in a new hypothesis or change the theorem conclusion. The JSON
+fields `proof_contract_verified` and `proof_contract_premises` expose this
+check and the premises it used. The direct pipeline remains the unconstrained
+baseline for comparison.
+
 To run the IR pipeline end to end:
 
 ```bash
@@ -175,6 +183,12 @@ operational errors. `accuracy_all_cases` counts errors as failures;
 wrong physical assumptions, so inspect false positives and theorem hypotheses
 before drawing conclusions about correctness.
 
+The proof contract currently accepts scalar arithmetic with `+`, `-`, `*`,
+`/`, integer powers, and comparisons. Expressions outside this subset return
+an error rather than silently bypassing the check. It does not establish that
+the LLM's Physics IR faithfully represents the natural-language problem; that
+is a separate validation stage.
+
 ## Next milestones
 
 - **Done:** direct problem -> Lean generation with a model SDK.
@@ -182,8 +196,11 @@ before drawing conclusions about correctness.
 - **Done:** natural language -> validated Physics IR -> Lean for the current
   introductory mechanics templates.
 - **Done:** a labeled benchmark runner for direct versus IR comparison.
+- **Done:** an IR proof contract that checks the generated theorem against IR
+  premises and the candidate conclusion in Lean.
 - **Next:** run the benchmark with the configured model, inspect false
-  positives, expand coverage, and build a user-facing interface.
+  positives, validate IR faithfulness, expand coverage, and build a user-facing
+  interface.
 
 The project will not claim a theorem is meaningful merely because it compiles:
 the eventual pipeline must also reject hidden assumptions, new axioms, and

@@ -35,6 +35,8 @@ Rules:
 - Do not put the desired conclusion in the theorem assumptions.
 - Translate only assumptions stated by the problem or mathematically necessary
   for the stated conclusion, such as a nonzero denominator.
+- Return exactly one named theorem. For Physics IR runs, a separate Lean
+  contract checks whether it proves the target from the IR premises.
 - The Lean compiler is the authority. Do not claim success in notes; provide
   repaired source instead.
 """

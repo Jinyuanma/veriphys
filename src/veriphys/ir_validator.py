@@ -55,11 +55,17 @@ def validate_physics_ir(ir: PhysicsIR) -> PhysicsIR:
         if ir.target.expression
         else None
     )
+    reversed_target_equation = (
+        _equation_signature(f"{ir.target.expression} = {ir.target.symbol}")
+        if ir.target.expression
+        else None
+    )
     if target_equation:
         premise_equations = [
             equation
             for equation in ir.equations
-            if _equation_signature(equation) != target_equation
+            if _equation_signature(equation)
+            not in {target_equation, reversed_target_equation}
         ]
         if len(premise_equations) != len(ir.equations):
             ir = ir.model_copy(update={"equations": premise_equations})
