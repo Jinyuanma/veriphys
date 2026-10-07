@@ -23,6 +23,7 @@ quantities are plain `Real` values for now; units and vectors are later work.
 veriphys/
 ├── src/veriphys/
 │   ├── cli.py             # command-line entry point
+│   ├── gui.py             # Tkinter desktop interface
 │   ├── lean_verifier.py   # Python -> Lean compiler bridge
 │   ├── parser.py          # problem -> Physics IR
 │   ├── physics_ir.py      # strict Physics IR schema
@@ -112,6 +113,24 @@ The checker asks the model for a structured Lean formalization, rejects unsafe
 generated code, and lets the local Lean compiler decide whether the candidate is
 `VERIFIED` or `REJECTED`. The model never gets to mark an answer as verified by
 itself.
+
+## Desktop GUI
+
+For interactive use, start the Tkinter desktop interface from the repository
+root:
+
+```bash
+.venv/bin/python -m veriphys.gui
+# or, after reinstalling the editable package:
+veriphys-gui
+```
+
+The GUI uses the same environment variables and verification pipeline as the
+CLI. Choose Direct or IR, set the model and repair limit, then press **检查答案**.
+The model call and Lean compilation run in a background thread so the window
+stays responsive. The result tabs show the status, Physics IR, assumptions,
+generated Lean source, diagnostics, and a **保存 JSON 报告** action. The API key
+is never entered into or saved by the GUI; it is read from `OPENAI_API_KEY`.
 
 ## Physics IR stage
 
