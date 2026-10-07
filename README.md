@@ -25,7 +25,11 @@ veriphys/
 │   ├── cli.py             # command-line entry point
 │   ├── lean_verifier.py   # Python -> Lean compiler bridge
 │   ├── parser.py          # problem -> Physics IR
+│   ├── physics_ir.py      # strict Physics IR schema
+│   ├── faithfulness.py    # source-symbol and template gate
 │   ├── lean_generator.py  # Physics IR -> Lean
+│   ├── proof_contract.py   # independent IR proof obligation
+│   ├── safety.py          # generated-Lean command boundary
 │   ├── repair.py          # bounded compiler-feedback repair
 │   └── check_answer.py    # end-to-end CLI
 ├── lean/
@@ -185,9 +189,12 @@ before drawing conclusions about correctness.
 
 The proof contract currently accepts scalar arithmetic with `+`, `-`, `*`,
 `/`, integer powers, and comparisons. Expressions outside this subset return
-an error rather than silently bypassing the check. It does not establish that
-the LLM's Physics IR faithfully represents the natural-language problem; that
-is a separate validation stage.
+an error rather than silently bypassing the check. Before Lean generation, the
+IR faithfulness gate rejects unknown problem types, symbols that cannot be
+traced to the problem text or supported physics vocabulary, and IRs with no
+source facts. This lexical gate is deliberately conservative: it catches
+invented variables but does not prove that every extracted equation has the
+same meaning as the sentence.
 
 ## Next milestones
 
@@ -198,9 +205,10 @@ is a separate validation stage.
 - **Done:** a labeled benchmark runner for direct versus IR comparison.
 - **Done:** an IR proof contract that checks the generated theorem against IR
   premises and the candidate conclusion in Lean.
+- **Done:** conservative IR faithfulness and strict generated-Lean safety gates.
 - **Next:** run the benchmark with the configured model, inspect false
-  positives, validate IR faithfulness, expand coverage, and build a user-facing
-  interface.
+  positives, strengthen semantic faithfulness with provenance and units,
+  expand coverage, and build a user-facing interface.
 
 The project will not claim a theorem is meaningful merely because it compiles:
 the eventual pipeline must also reject hidden assumptions, new axioms, and

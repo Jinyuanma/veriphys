@@ -15,7 +15,7 @@ from .formalizer import (
 )
 from .ir_validator import InvalidPhysicsIRError
 from .lean_generator import IRLeanGenerator
-from .lean_verifier import LeanUnavailableError
+from .lean_verifier import LeanUnavailableError, verify_lean
 from .parser import PhysicsParser
 from .pipeline import verify_source
 from .proof_contract import ProofContract, ProofContractError, build_proof_contract
@@ -62,7 +62,10 @@ def _verify_generated(
             stderr=f"Proof contract rejected generated Lean: {exc}",
             command=("proof_contract",),
         )
-    return verify_source(source, project_dir=project_dir)
+    # ``source`` already passed the safety check before the deterministic
+    # contract theorem was attached. Verify the combined file directly so the
+    # contract's second theorem is not mistaken for model-generated code.
+    return verify_lean(source, project_dir=project_dir)
 
 
 def check_answer(

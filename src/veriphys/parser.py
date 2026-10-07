@@ -6,6 +6,7 @@ import json
 import os
 
 from .formalizer import FormalizerConfig, LLMConfigurationError, LLMResponseError
+from .faithfulness import audit_ir_faithfulness
 from .ir_validator import validate_physics_ir
 from .physics_ir import PhysicsIR
 
@@ -111,4 +112,6 @@ class PhysicsParser:
 
         if parsed is None:
             raise LLMResponseError("The parser did not return a structured Physics IR.")
-        return validate_physics_ir(parsed)
+        validated = validate_physics_ir(parsed)
+        audit_ir_faithfulness(problem, validated)
+        return validated

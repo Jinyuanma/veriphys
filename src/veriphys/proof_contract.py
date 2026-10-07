@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import re
 from dataclasses import dataclass
+from fractions import Fraction
 
 from .physics_ir import PhysicsIR
 
@@ -15,6 +16,8 @@ class ProofContractError(ValueError):
 
 def _parse(value: str) -> ast.AST:
     normalized = value.replace("≠", "!=").replace("≤", "<=").replace("≥", ">=")
+    # Physics notation uses ^ for powers; Python's AST uses **.
+    normalized = normalized.replace("^", "**")
     normalized = re.sub(r"(?<![!<>=])=(?!=)", "==", normalized)
     try:
         return ast.parse(normalized, mode="eval").body
@@ -29,6 +32,7 @@ def _render_expr(node: ast.AST, variables: set[str], denominators: set[str]) -> 
         variables.add(node.id)
         return node.id
     if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+        _constant_key(node.value)
         return str(node.value)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
         operator = "+" if isinstance(node.op, ast.UAdd) else "-"
@@ -58,8 +62,14 @@ def _render_expr(node: ast.AST, variables: set[str], denominators: set[str]) -> 
             raise ProofContractError("Division by literal zero is not a physical answer")
         left = _render_expr(node.left, variables, denominators)
         right = _render_expr(node.right, variables, denominators)
-        if isinstance(node.op, ast.Div) and isinstance(node.right, ast.Name):
-            denominators.add(node.right.id)
+        if isinstance(node.op, ast.Div):
+            denominator = _canonical_expr(node.right)
+            if denominator[0] == "name":
+                denominators.add(denominator[1])
+            elif denominator[0] != "const":
+                raise ProofContractError(
+                    "Only named or literal denominators are supported in the proof contract"
+                )
         return f"({left} {operator} {right})"
     raise ProofContractError("Only scalar algebraic expressions are supported")
 
@@ -105,9 +115,80 @@ def _same_equality(left: ast.AST, right: ast.AST) -> bool:
         and isinstance(right.ops[0], ast.Eq)
     ):
         return False
-    left_parts = (ast.dump(left.left), ast.dump(left.comparators[0]))
-    right_parts = (ast.dump(right.left), ast.dump(right.comparators[0]))
+    left_parts = (_canonical_expr(left.left), _canonical_expr(left.comparators[0]))
+    right_parts = (_canonical_expr(right.left), _canonical_expr(right.comparators[0]))
     return left_parts == right_parts or left_parts == right_parts[::-1]
+
+
+def _constant_key(value: int | float) -> tuple[str, str]:
+    try:
+        normalized = Fraction(str(value))
+    except (ValueError, OverflowError, ZeroDivisionError) as exc:
+        raise ProofContractError("Numeric constants must be finite real values") from exc
+    return ("const", str(normalized))
+
+
+def _flatten(node: ast.AST, operator: type[ast.operator]) -> list[ast.AST]:
+    if isinstance(node, ast.BinOp) and isinstance(node.op, operator):
+        return _flatten(node.left, operator) + _flatten(node.right, operator)
+    return [node]
+
+
+def _canonical_expr(node: ast.AST) -> tuple[object, ...]:
+    """Canonicalize harmless algebraic syntax before comparing premises."""
+
+    if isinstance(node, ast.Name):
+        return ("name", node.id)
+    if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+        return _constant_key(node.value)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.UAdd):
+        return _canonical_expr(node.operand)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        operand = _canonical_expr(node.operand)
+        if operand[0] == "const":
+            return ("const", str(-Fraction(operand[1])))
+        if operand[0] == "neg":
+            return operand[1]
+        return ("neg", operand)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        terms = [_canonical_expr(item) for item in _flatten(node, ast.Add)]
+        terms = [term for term in terms if term != ("const", "0")]
+        if not terms:
+            return ("const", "0")
+        if len(terms) == 1:
+            return terms[0]
+        return ("add", *sorted(terms, key=repr))
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Sub):
+        return _canonical_expr(ast.BinOp(left=node.left, op=ast.Add(), right=ast.UnaryOp(op=ast.USub(), operand=node.right)))
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+        factors = [_canonical_expr(item) for item in _flatten(node, ast.Mult)]
+        if ("const", "0") in factors:
+            return ("const", "0")
+        factors = [factor for factor in factors if factor != ("const", "1")]
+        if not factors:
+            return ("const", "1")
+        if len(factors) == 1:
+            return factors[0]
+        return ("mul", *sorted(factors, key=repr))
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        numerator = _canonical_expr(node.left)
+        denominator = _canonical_expr(node.right)
+        if denominator == ("const", "1"):
+            return numerator
+        return ("div", numerator, denominator)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+        if not isinstance(node.right, ast.Constant) or type(node.right.value) is not int:
+            raise ProofContractError("Exponents must be integer literals")
+        exponent = node.right.value
+        if exponent < 0:
+            raise ProofContractError("Negative exponents are not yet supported")
+        base = _canonical_expr(node.left)
+        if exponent == 0:
+            return ("const", "1")
+        if exponent == 1:
+            return base
+        return ("pow", base, exponent)
+    raise ProofContractError("Only scalar algebraic expressions are supported")
 
 
 @dataclass(frozen=True)
@@ -149,7 +230,9 @@ def build_proof_contract(ir: PhysicsIR, candidate_answer: str) -> ProofContract:
         raise ProofContractError("Candidate must be an equation for the IR target symbol")
     if not ir.target.expression:
         raise ProofContractError("IR target expression is missing")
-    if ast.dump(candidate.comparators[0]) != ast.dump(_parse(ir.target.expression)):
+    if _canonical_expr(candidate.comparators[0]) != _canonical_expr(
+        _parse(ir.target.expression)
+    ):
         raise ProofContractError("IR target does not match the candidate answer")
 
     variables: set[str] = set()

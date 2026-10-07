@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 ProblemType = Literal[
@@ -30,12 +30,16 @@ ForceType = Literal[
 
 
 class PhysicsObject(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: str = Field(min_length=1)
     type: str = Field(default="particle", min_length=1)
     mass: str | None = None
 
 
 class PhysicsForce(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     type: ForceType
     object: str | None = None
     expression: str | None = None
@@ -43,6 +47,8 @@ class PhysicsForce(BaseModel):
 
 
 class PhysicsTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     quantity: str = Field(min_length=1)
     symbol: str = Field(min_length=1)
     expression: str | None = None
@@ -50,6 +56,8 @@ class PhysicsTarget(BaseModel):
 
 class PhysicsIR(BaseModel):
     """LLM output between natural language and Lean generation."""
+
+    model_config = ConfigDict(extra="forbid")
 
     schema_version: Literal["1"] = "1"
     problem_type: ProblemType

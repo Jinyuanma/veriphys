@@ -29,6 +29,20 @@ class ProofContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ProofContractError, "among IR premises"):
             build_proof_contract(ir, "a = F/m")
 
+    def test_algebraically_equivalent_candidate_premise_is_rejected(self) -> None:
+        ir = newton_ir().model_copy(
+            update={"equations": ["F = m*a", "a = (F*1)/m"]}
+        )
+        with self.assertRaisesRegex(ProofContractError, "among IR premises"):
+            build_proof_contract(ir, "a = F/m")
+
+    def test_algebraically_equivalent_target_is_accepted(self) -> None:
+        ir = newton_ir().model_copy(
+            update={"target": newton_ir().target.model_copy(update={"expression": "(F*1)/m"})}
+        )
+        contract = build_proof_contract(ir, "a = F/m")
+        self.assertEqual(contract.conclusion, "a = (F / m)")
+
     def test_zero_mass_cannot_be_combined_with_nonzero_guard(self) -> None:
         ir = newton_ir().model_copy(update={"constraints": ["m = 0"]})
         with self.assertRaisesRegex(ProofContractError, "to zero"):
@@ -45,6 +59,10 @@ class ProofContractTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ProofContractError, "literal zero"):
             build_proof_contract(ir, "a = F/0")
+
+    def test_nonfinite_numeric_constant_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ProofContractError, "finite"):
+            build_proof_contract(newton_ir(), "a = 1e999")
 
     def test_validator_removes_reversed_candidate_premise(self) -> None:
         ir = newton_ir().model_copy(update={"equations": ["F = m*a", "F/m = a"]})
