@@ -178,6 +178,11 @@ locally. This makes 16 initial model runs; enabling repairs can make more.
 .venv/bin/python -m veriphys.benchmark --output work/benchmark-report.json
 ```
 
+The report records the benchmark file hash, Git commit, Python and Lean
+versions, API mode, selected model, repair limit, overall counts, decision
+rate, and per-domain counts. It never records `OPENAI_API_KEY`. Add
+`--fail-on-misclassification` when using the command as a CI quality gate.
+
 Use `--pipelines direct` or `--pipelines ir` to run one path, and
 `--max-repairs 3` to measure the repair-enabled version. The report retains
 each problem, expected label, generated Lean, compiler result, repair history,

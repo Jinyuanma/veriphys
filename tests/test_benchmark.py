@@ -102,6 +102,64 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(report["summary"]["direct"]["counts"]["error"], 1)
         self.assertEqual(report["results"][0]["observed_status"], "error")
 
+    def test_report_records_metadata_and_domain_coverage(self) -> None:
+        suite = BenchmarkSuite(
+            name="metadata",
+            description="one case",
+            cases=[
+                BenchmarkCase(
+                    id="case",
+                    domain="newton_second_law",
+                    problem="F = m*a and m != 0",
+                    answer="a = F/m",
+                    expected_correct=True,
+                    rationale="divide by m",
+                )
+            ],
+        )
+
+        def checker(problem: str, answer: str, **kwargs: object) -> AnswerCheckResult:
+            return AnswerCheckResult(
+                status="verified",
+                problem=problem,
+                candidate_answer=answer,
+                lean_verified=True,
+            )
+
+        report = run_benchmark(suite, pipelines=("direct",), checker=checker)
+        self.assertEqual(report["report_schema_version"], "1")
+        self.assertEqual(report["case_count"], 1)
+        self.assertIn("metadata", report)
+        self.assertIn("newton_second_law", report["summary_by_domain"])
+        self.assertEqual(report["summary"]["direct"]["decision_rate"], 1.0)
+
+    def test_unknown_checker_status_is_an_error(self) -> None:
+        suite = BenchmarkSuite(
+            name="unknown-status",
+            cases=[
+                BenchmarkCase(
+                    id="case",
+                    domain="newton_second_law",
+                    problem="F = m*a",
+                    answer="a = F/m",
+                    expected_correct=True,
+                    rationale="equation",
+                )
+            ],
+        )
+
+        def checker(problem: str, answer: str, **kwargs: object) -> AnswerCheckResult:
+            return AnswerCheckResult(
+                status="maybe",
+                problem=problem,
+                candidate_answer=answer,
+            )
+
+        report = run_benchmark(suite, pipelines=("direct",), checker=checker)
+        self.assertEqual(report["results"][0]["observed_status"], "error")
+        self.assertEqual(report["results"][0]["result"]["status"], "error")
+        self.assertEqual(report["results"][0]["result"]["raw_status"], "maybe")
+
 
 if __name__ == "__main__":
     unittest.main()
